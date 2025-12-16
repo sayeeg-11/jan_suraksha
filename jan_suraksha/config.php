@@ -6,7 +6,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Database configuration - update with your MySQL credentials
-$db_host = '127.0.0.1';
+$db_host = 'localhost';
 $db_user = 'root';
 $db_pass = '';
 $db_name = 'jan_suraksha';

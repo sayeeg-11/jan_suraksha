@@ -25,13 +25,18 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 <style>
-  body {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  }
+
+body {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
   
   .auth-card {
     background: white;
@@ -177,13 +182,29 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     border-radius: 10px;
     border: none;
   }
+.input-group-text {
+  border: 2px solid #e5e7eb;
+  border-left: none;
+  background: #f8fafc;
+  border-radius: 0 10px 10px 0;
+  color: #64748b;
+  padding: 0.75rem;
+}
+
+.input-group-text:hover {
+  background: #e2e8f0;
+  color: #475569;
+}
+git
+
+
 </style>
 </head>
 <body>
 <a href="index.php" class="back-home">
   <i class="bi bi-arrow-left"></i> Back to Home
 </a>
-<div class="container">
+<div class="container login-container">
   <div class="row justify-content-center">
     <div class="col-md-5 col-lg-4">
       <div class="auth-card">
@@ -196,12 +217,20 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     <form method="post" id="loginForm" novalidate>
       <div class="mb-3">
         <label class="form-label">Email or Mobile Number</label>
-        <input class="form-control" name="id" type="text" autocomplete="username" placeholder="Enter email or mobile number">
-      </div>
-      <div class="mb-3">
-        <label class="form-label">Password</label>
-        <input class="form-control" name="password" type="password" autocomplete="current-password" placeholder="Enter your password">
-      </div>
+<input class="form-control" name="id" type="text" autocomplete="username" placeholder="Enter email or mobile number">
+<div class="invalid-feedback">Please enter your email or mobile number.</div>
+
+<label class="form-label">Password</label>
+<div class="input-group">
+  <input class="form-control" id="passwordField" name="password" type="password"
+         autocomplete="current-password" placeholder="Enter your password" required minlength="6">
+  <button class="btn input-group-text" type="button" id="togglePassword">
+    <i class="bi bi-eye" id="toggleIcon"></i>
+  </button>
+</div>
+<div class="invalid-feedback">Password must be at least 6 characters.</div>
+
+
       <button class="btn btn-primary w-100" type="submit">
         <i class="bi bi-box-arrow-in-right me-2"></i>Login
       </button>
@@ -215,4 +244,53 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
   </div>
 </div>
 <script src="js/main.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const form = document.getElementById('loginForm');
+  const idInput = form.querySelector('input[name="id"]');
+  const passwordInput = document.getElementById('passwordField');
+  const togglePasswordBtn = document.getElementById('togglePassword');
+
+ togglePasswordBtn.addEventListener('click', function () {
+  const isPassword = passwordInput.type === 'password';
+  passwordInput.type = isPassword ? 'text' : 'password';
+  const icon = document.getElementById('toggleIcon');
+  icon.className = isPassword ? 'bi bi-eye-slash' : 'bi bi-eye';
+});
+
+  // Simple client-side validation
+  form.addEventListener('submit', function (e) {
+    let hasError = false;
+
+    // reset states
+    [idInput, passwordInput].forEach(el => {
+      el.classList.remove('is-invalid', 'is-valid');
+    });
+
+    // validate id (required)
+    if (!idInput.value.trim()) {
+      idInput.classList.add('is-invalid');
+      hasError = true;
+    } else {
+      idInput.classList.add('is-valid');
+    }
+
+    // validate password (required, min length 6)
+    if (!passwordInput.value.trim() || passwordInput.value.length < 6) {
+      passwordInput.classList.add('is-invalid');
+      hasError = true;
+    } else {
+      passwordInput.classList.add('is-valid');
+    }
+
+    if (hasError) {
+      e.preventDefault();
+    }
+  });
+});
+</script>
+<script src="js/main.js"></script>
+</body>
+</html>
+
 </body></html>
