@@ -1,0 +1,35 @@
+name: Deploy to InfinityFree
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  FTP-Deploy-Action:
+    name: FTP-Deploy-Action
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4.1.7
+      with:
+        fetch-depth: 2
+
+    - name: FTP-Deploy-Action
+      uses: SamKirkland/FTP-Deploy-Action@4.3.5
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        
+        # This tells GitHub to go inside your folder
+        local-dir: ./jan_suraksha/
+        
+        # This puts the files in the main public folder
+        server-dir: ./htdocs/
+        
+        # This forces the update
+        dangerous-clean-slate: true
+        
+        exclude: |
+          **/.git*
+          **/.git*/**
+          config.php
