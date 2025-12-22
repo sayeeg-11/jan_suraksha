@@ -21,6 +21,7 @@
   - [Prerequisites](#prerequisites)
   - [Step-by-Step Installation](#step-by-step-installation)
 - [🤝 Contribution Guidelines](#-contribution-guidelines)
+- [🧑‍💻 Contributors](#-contributors)
 - [🛡️ Project Admin](#️-project-admin)
 - [📄 License](#-license)
 - [Thanks for visiting Jan Suraksha! 🇮🇳](#thanks-for-visiting-jan-suraksha-️)
@@ -71,8 +72,6 @@ Jan-Suraksha/
 ├── login.php            # User authentication
 └── README.md            # You are reading this!
 ````
-
------
 
 ## ✨ Features
 
@@ -169,6 +168,18 @@ We welcome contributions from everyone!
 7.  **Create a Pull Request (PR):** Go to the original repository and click "Compare & pull request".
 
 > **⚠️ IMPORTANT:** Do **NOT** change the `config.php` file in your PR unless necessary for local testing. Our CI/CD pipeline handles the live server connection automatically.
+
+-----
+## 🧑‍💻 Contributors
+
+A huge thank you to all the amazing people who have contributed to **Jan Suraksha**!
+
+<a href="https://github.com/Anjalijagta/jan_suraksha/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Anjalijagta/jan_suraksha" />
+</a>
+
+
+**Want to contribute?** Follow our [Contribution Guidelines](#-contribution-guidelines) — all PRs welcome! 🚀
 
 -----
 
