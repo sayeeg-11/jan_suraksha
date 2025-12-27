@@ -22,3 +22,6 @@ if (!function_exists('e')) {
         return htmlspecialchars($string, ENT_QUOTES, 'UTF-8'); 
     }
 }
+
+// Simple debug logger (writes to logs/debug.log)
+// debug helper removed

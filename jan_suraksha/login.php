@@ -32,10 +32,10 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
             }
         }
     }
-}
-?>
+  }
+  ?>
 
-<!doctype html>
+  <!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Login - Jan Suraksha</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -70,36 +70,6 @@ body {
       opacity: 1;
       transform: translateY(0);
     }
-  }
-  
-  .auth-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 2.5rem 2rem;
-    text-align: center;
-  }
-  
-  .auth-header h2 {
-    margin: 0;
-    font-weight: 700;
-    font-size: 1.8rem;
-  }
-  
-  .auth-header p {
-    margin: 0.5rem 0 0 0;
-    opacity: 0.9;
-    font-size: 0.95rem;
-  }
-  
-  .auth-body {
-    padding: 2.5rem 2rem;
-  }
-  
-  .form-label {
-    font-weight: 600;
-    color: #344054;
-    margin-bottom: 0.5rem;
-    font-size: 0.9rem;
   }
   
   .form-control {
