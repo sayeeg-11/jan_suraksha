@@ -145,7 +145,7 @@ You need a local server environment to run PHP and MySQL.
 5.  **Run the Project:**
 
       * Open your browser.
-      * Go to: `http://localhost/jan_suraksha/`
+      * Go to: `http://localhost/jan_suraksha/jan_suraksha`
 
 -----
 
