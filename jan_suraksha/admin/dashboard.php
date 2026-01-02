@@ -1,13 +1,11 @@
 <?php
 require_once __DIR__ . '/../config.php';
 
-// --- PHP Data Fetching ---
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 if(empty($_SESSION['admin_id'])){ header('Location: index.php'); exit; }
 
-// safe query helper: returns mysqli_result or false and logs DB errors
 function run_query($sql){
     global $mysqli;
     $res = $mysqli->query($sql);
@@ -18,37 +16,16 @@ function run_query($sql){
     return $res;
 }
 
-// Determine the active page to highlight the link in the sidebar
 $current_page = basename($_SERVER['PHP_SELF']);
 
 // 1. Top-Level Metrics
-$res = run_query("SELECT COUNT(*) AS c FROM complaints");
-$total = ($res) ? ($res->fetch_assoc()['c'] ?? 0) : 0;
-$res = run_query("SELECT COUNT(*) AS c FROM complaints WHERE status='Pending'");
-$pending = ($res) ? ($res->fetch_assoc()['c'] ?? 0) : 0;
-$res = run_query("SELECT COUNT(*) AS c FROM complaints WHERE status='In Progress'");
-$investigating = ($res) ? ($res->fetch_assoc()['c'] ?? 0) : 0;
-$res = run_query("SELECT COUNT(*) AS c FROM complaints WHERE status='Resolved'");
-$resolved = ($res) ? ($res->fetch_assoc()['c'] ?? 0) : 0;
+$total = run_query("SELECT COUNT(*) AS c FROM complaints") ? run_query("SELECT COUNT(*) AS c FROM complaints")->fetch_assoc()['c'] ?? 0 : 0;
+$pending = run_query("SELECT COUNT(*) AS c FROM complaints WHERE status='Pending'") ? run_query("SELECT COUNT(*) AS c FROM complaints WHERE status='Pending'")->fetch_assoc()['c'] ?? 0 : 0;
+$investigating = run_query("SELECT COUNT(*) AS c FROM complaints WHERE status='In Progress'") ? run_query("SELECT COUNT(*) AS c FROM complaints WHERE status='In Progress'")->fetch_assoc()['c'] ?? 0 : 0;
+$resolved = run_query("SELECT COUNT(*) AS c FROM complaints WHERE status='Resolved'") ? run_query("SELECT COUNT(*) AS c FROM complaints WHERE status='Resolved'")->fetch_assoc()['c'] ?? 0 : 0;
+$criminals = run_query("SELECT COUNT(*) AS c FROM criminals") ? run_query("SELECT COUNT(*) AS c FROM criminals")->fetch_assoc()['c'] ?? 0 : 0;
 
-// 2. State-wise Crime Hotspots
-$state_hotspots_query = run_query("SELECT state, COUNT(*) as count FROM complaints WHERE state IS NOT NULL AND state != '' GROUP BY state ORDER BY count DESC LIMIT 4");
-$state_hotspots = [];
-$res = run_query("SELECT COUNT(*) as c FROM complaints WHERE state IS NOT NULL AND state != ''");
-$total_state_complaints = ($res) ? ($res->fetch_assoc()['c'] ?? 0) : 0;
-$state_hotspots_query = run_query("SELECT state, COUNT(*) as count FROM complaints WHERE state IS NOT NULL AND state != '' GROUP BY state ORDER BY count DESC LIMIT 4");
-
-// 3. Daily Reports (Last 30 days)
-$daily_reports_query = run_query("SELECT DATE(created_at) as report_date, COUNT(*) as count FROM complaints WHERE created_at >= CURDATE() - INTERVAL 30 DAY GROUP BY report_date ORDER BY report_date ASC");
-$daily_labels = []; $daily_data = [];
-if($daily_reports_query){
-    while($row = $daily_reports_query->fetch_assoc()){
-        $daily_labels[] = date('M d', strtotime($row['report_date']));
-        $daily_data[] = $row['count'];
-    }
-}
-
-// 4. Crime Category Breakdown
+// 2. Crime Category Breakdown
 $category_query = run_query("SELECT crime_type, COUNT(*) as count FROM complaints GROUP BY crime_type ORDER BY count DESC LIMIT 5");
 $category_labels = []; $category_data = [];
 if($category_query){
@@ -58,300 +35,429 @@ if($category_query){
     }
 }
 
-// 5. Recent Activity Feed
-$recent_activity = run_query("SELECT complaint_code, crime_type, created_at FROM complaints ORDER BY created_at DESC LIMIT 5");
+// 3. Recent Complaints
+$recent_complaints = run_query("SELECT c.id, c.complaint_code, c.crime_type, c.status, c.created_at, u.name as complainant 
+                                FROM complaints c LEFT JOIN users u ON c.user_id = u.id 
+                                ORDER BY c.created_at DESC LIMIT 8");
 ?>
+
 <!doctype html>
 <html lang="en" data-bs-theme="dark">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Admin Dashboard - Jan Suraksha</title>
+    <title>Command Center - Jan Suraksha Admin</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
         :root {
-            --bs-body-bg: #0d1117;
-            --bs-body-color: #c9d1d9;
-            --primary-dark: #161b22;
-            --secondary-dark: #21262d;
-            --border-color: #30363d;
+            --primary-gradient: linear-gradient(135deg, #2563eb 0%, #1d4ed8 50%, #1e40af 100%);
+            --success-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            --warning-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            --danger-gradient: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            --glass-bg: rgba(37, 99, 235, 0.1);
+            --glass-border: rgba(37, 99, 235, 0.2);
         }
-        /* Light theme override when class 'light-theme' is applied to <html> */
-        html.light-theme {
-            --bs-body-bg: #ffffff;
-            --bs-body-color: #212529;
-            --primary-dark: #ffffff;
-            --secondary-dark: #f4f5f6ff;
-            --border-color: #d4dbe2ff;
-        }
-        /* Temporarily disable transitions when switching theme to avoid faded effect */
-        html.disable-transitions *, html.disable-transitions *::before, html.disable-transitions *::after {
-            transition: none !important;
-            -webkit-transition: none !important;
-        }
-        /* Theme toggle styles */
-        .theme-toggle { cursor: pointer; }
-        .theme-toggle .bi { font-size: 1.05rem; }
 
-        /* Light-theme detailed overrides to improve contrast and readability */
-        html.light-theme body { background-color: var(--bs-body-bg); color: var(--bs-body-color); }
-        html.light-theme .sidebar { background-color: var(--primary-dark); border-right-color: var(--border-color); }
-        html.light-theme .topbar { background-color: var(--primary-dark); border-bottom-color: var(--border-color); }
-        html.light-theme .card { background-color: var(--secondary-dark); color: var(--bs-body-color); border-color: var(--border-color); }
-        html.light-theme .sidebar-nav .nav-link { color: #495057; }
-        html.light-theme .sidebar-nav .nav-link:hover, html.light-theme .sidebar-nav .nav-link.active { background-color: #e9ecef; color: #212529; }
-        html.light-theme .list-group-item { color: #212529; background: transparent; border-color: #e9ecef; }
-        /* Ensure text-light switches to dark text in light-theme, and stays white in dark-theme */
-        html.light-theme .text-light { color: #212529 !important; }
-        html:not(.light-theme) .text-light { color: #ffffff !important; }
-        /* Secondary text color adjustments */
-        html.light-theme .text-secondary { color: #6c757d !important; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", sans-serif; }
+        * { font-family: 'Inter', sans-serif; }
+        body { 
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
         .sidebar {
-            width: 260px; background-color: var(--primary-dark); border-right: 1px solid var(--border-color);
-            position: fixed; top: 0; bottom: 0; left: 0;
-            transition: transform 0.3s ease-in-out; z-index: 1040;
+            width: 280px; 
+            background: linear-gradient(180deg, #111827 0%, #1f2937 100%);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(55, 65, 81, 0.5);
+            box-shadow: 5px 0 25px rgba(0,0,0,0.3);
         }
-        .main-content { margin-left: 260px; transition: margin-left 0.3s ease-in-out; }
-        @media (max-width: 991.98px) {
-            .sidebar { transform: translateX(-100%); }
-            .main-content { margin-left: 0; }
-            .sidebar.active { transform: translateX(0); }
+        .sidebar-header { 
+            background: linear-gradient(135deg, #2563eb, #1d4ed8); 
+            color: white;
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
-        .sidebar-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-color); }
         .sidebar-nav .nav-link {
-            color: #8b949e; padding: 0.75rem 1.5rem; display: flex; align-items: center; font-size: 1rem;
+            color: #9ca3af; 
+            padding: 1rem 2rem; 
+            margin: 0.25rem 1rem;
+            border-radius: 12px;
+            transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+            font-weight: 500;
         }
         .sidebar-nav .nav-link:hover, .sidebar-nav .nav-link.active {
-            background-color: var(--secondary-dark); color: #c9d1d9; border-radius: 6px;
+            background: linear-gradient(135deg, rgba(37,99,235,0.2), rgba(29,78,216,0.3));
+            color: white;
+            transform: translateX(8px);
+            box-shadow: 0 8px 25px rgba(37,99,235,0.3);
         }
-        .sidebar-nav .nav-link i { margin-right: 1rem; font-size: 1.2rem; }
-        .topbar { background-color: var(--primary-dark); border-bottom: 1px solid var(--border-color); }
-        .card { background-color: var(--primary-dark); border: 1px solid var(--border-color); }
+        .sidebar-nav .nav-link i {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            width: 24px;
+            margin-right: 1rem;
+        }
+
+        /* Topbar */
+        .topbar { 
+            background: rgba(17, 24, 39, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(55, 65, 81, 0.5);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+
+        /* Metric Cards */
+        .metric-card {
+            background: linear-gradient(145deg, rgba(31,41,55,0.8), rgba(17,24,39,0.9));
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(37,99,235,0.3);
+            border-radius: 20px;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            transition: all 0.4s cubic-bezier(0.4,0,0.2,1);
+            position: relative;
+            overflow: hidden;
+        }
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 4px;
+            background: var(--primary-gradient);
+        }
+        .metric-card:hover {
+            transform: translateY(-12px) scale(1.02);
+            box-shadow: 0 25px 50px rgba(37,99,235,0.4);
+            border-color: rgba(37,99,235,0.6);
+        }
+        .metric-card .icon {
+            font-size: 3rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+        }
+        .metric-badge {
+            padding: 0.5rem 1.25rem;
+            border-radius: 50px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Quick Actions */
+        .quick-action-btn {
+            border-radius: 16px;
+            padding: 1.25rem 1rem;
+            font-weight: 600;
+            border: none;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(15px);
+        }
+        .quick-action-btn:hover { transform: translateY(-3px); box-shadow: 0 15px 35px rgba(0,0,0,0.3); }
+
+        /* Recent Table */
+        .recent-table thead th {
+            background: rgba(37,99,235,0.2);
+            border: none;
+            font-weight: 600;
+            color: white;
+        }
+        .status-badge {
+            padding: 0.375rem 0.875rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+        }
+        .status-pending { background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+        .status-progress { background: rgba(16,185,129,0.2); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+        .status-resolved { background: rgba(34,197,94,0.2); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+
+        /* Charts */
+        .chart-container { background: rgba(31,41,55,0.8); border-radius: 20px; padding: 2rem; backdrop-filter: blur(20px); }
     </style>
 </head>
 <body>
-
 <div class="d-flex">
-    <!-- Sidebar -->
+    <!-- Enhanced Sidebar -->
     <aside class="sidebar vh-100" id="adminSidebar">
-        <div class="sidebar-header"><h5 class="mb-0">Command Center</h5></div>
-        <div class="p-3">
-             <nav class="nav flex-column sidebar-nav">
-                <a class="nav-link <?= ($current_page == 'dashboard.php') ? 'active' : '' ?>" href="dashboard.php"><i class="bi bi-house-door-fill"></i> Home</a>
-                <a class="nav-link" href="cases.php"><i class="bi bi-shield-check"></i> View Complaints</a>
-                <a class="nav-link" href="criminals.php"><i class="bi bi-people-fill"></i> criminals</a>
-                <a class="nav-link" href="#"><i class="bi bi-gear-fill"></i> Settings</a>
-                <a class="nav-link" href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
-            </nav>
+        <div class="sidebar-header">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-shield-check fs-3 me-3"></i>
+                <div>
+                    <h4 class="mb-0 fw-bold">Jan Suraksha</h4>
+                    <small class="opacity-75">Command Center</small>
+                </div>
+            </div>
         </div>
-      </aside>
+        <nav class="nav flex-column sidebar-nav mt-4">
+            <a class="nav-link <?= ($current_page == 'dashboard.php') ? 'active' : '' ?>" href="dashboard.php">
+                <i class="bi bi-house-door-fill"></i> Dashboard
+            </a>
+            <a class="nav-link" href="cases.php">
+                <i class="bi bi-file-earmark-shield-fill"></i> Complaints
+            </a>
+            <a class="nav-link" href="criminals.php">
+                <i class="bi bi-person-lines-fill"></i> Criminals
+            </a>
+            <a class="nav-link" href="settings.php">
+                <i class="bi bi-gear-fill"></i> Settings
+            </a>
+            <a class="nav-link text-danger" href="logout.php">
+                <i class="bi bi-box-arrow-right"></i> Logout
+            </a>
+        </nav>
+    </aside>
 
     <!-- Main Content -->
-    <div class="main-content flex-grow-1">
-        <header class="topbar p-3 sticky-top d-flex align-items-center">
-             <button class="btn btn-dark d-lg-none" id="sidebarToggle"><i class="bi bi-list"></i></button>
-             <!-- Theme toggle on the right -->
-             <div class="ms-auto d-flex align-items-center">
-                 <div id="themeToggleWrapper" class="form-check form-switch theme-toggle text-light me-2" title="Toggle light / dark theme">
-                     <input class="form-check-input" type="checkbox" id="themeToggle">
-                     <label class="form-check-label mb-0 d-flex align-items-center" for="themeToggle"><i id="themeIcon" class="bi bi-moon-stars-fill"></i></label>
-                 </div>
-             </div>
+    <div class="flex-grow-1">
+        <!-- Topbar -->
+        <header class="topbar px-4 py-3">
+            <button class="btn btn-outline-light btn-sm d-lg-none me-3" id="sidebarToggle">
+                <i class="bi bi-list fs-5"></i>
+            </button>
+            <div class="d-flex align-items-center ms-auto">
+                <span class="badge bg-primary fs-6 me-2">Admin</span>
+                <div class="dropdown ms-3">
+                    <a class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-person-circle fs-5 me-2"></i>
+                        <span class="fw-semibold"><?= $_SESSION['admin_name'] ?? 'Admin' ?></span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="profile.php"><i class="bi bi-person me-2"></i>Profile</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="logout.php"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                    </ul>
+                </div>
+            </div>
         </header>
 
-        <main class="p-4">
-            <!-- Page specific content starts here -->
-            <h3 class="mb-4">Top-Level Metrics</h3>
-            <div class="row g-4">
-                <div class="col-md-6 col-lg-3"><div class="card p-3"><div class="text-secondary">Total Complaints</div><h3 id="totalComplaints" class="fw-bold mt-1"><?= number_format($total) ?></h3></div></div>
-                <div class="col-md-6 col-lg-3"><div class="card p-3"><div class="text-secondary">Pending</div><h3 id="pendingComplaints" class="fw-bold mt-1"><?= number_format($pending) ?></h3></div></div>
-                <div class="col-md-6 col-lg-3"><div class="card p-3"><div class="text-secondary">Resolved</div><h3 id="resolvedComplaints" class="fw-bold mt-1"><?= number_format($resolved) ?></h3></div></div>
-                <div class="col-md-6 col-lg-3"><div class="card p-3"><div class="text-secondary">Total Criminals</div><h3 id="totalCriminals" class="fw-bold mt-1">Loading...</h3></div></div>
-            </div>
-
-            <div class="row g-4 mt-3">
-                <div class="col-12">
-                    <div class="card p-3"><h5 class="mb-3">Crime Category Breakdown</h5><canvas id="categoryBreakdownChart"></canvas></div>
+        <main class="p-5">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-5">
+                <div>
+                    <h1 class="display-5 fw-bold mb-2 text-white">Welcome Back, Admin</h1>
+                    <p class="text-secondary mb-0">Here's what's happening with your cases today</p>
+                </div>
+                <div class="text-end">
+                    <span class="badge bg-success fs-6">Online</span>
                 </div>
             </div>
 
-            <h3 class="mt-5 mb-4">Overview</h3>
+            <!-- KPI Metrics -->
+            <div class="row g-4 mb-5">
+                <div class="col-xl-3 col-md-6">
+                    <div class="metric-card h-100">
+                        <div class="icon"><i class="bi bi-file-earmark-text"></i></div>
+                        <div class="text-secondary mb-2">Total Complaints</div>
+                        <h2 class="fw-bold text-white mb-2"><?= number_format($total) ?></h2>
+                        <div class="metric-badge bg-primary">+12% vs last week</div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="metric-card h-100">
+                        <div class="icon"><i class="bi bi-clock-history"></i></div>
+                        <div class="text-secondary mb-2">Pending</div>
+                        <h2 class="fw-bold text-warning"><?= number_format($pending) ?></h2>
+                        <div class="metric-badge status-pending">Needs attention</div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="metric-card h-100">
+                        <div class="icon"><i class="bi bi-check-circle-fill"></i></div>
+                        <div class="text-secondary mb-2">Resolved</div>
+                        <h2 class="fw-bold text-success"><?= number_format($resolved) ?></h2>
+                        <div class="metric-badge bg-success">95% success</div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="metric-card h-100">
+                        <div class="icon"><i class="bi bi-people-fill"></i></div>
+                        <div class="text-secondary mb-2">Total Criminals</div>
+                        <h2 class="fw-bold text-primary"><?= number_format($criminals) ?></h2>
+                        <div class="metric-badge bg-info">Database synced</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="row g-4 mb-5">
+                <div class="col-lg-8">
+                    <div class="chart-container h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h5 class="mb-0 fw-semibold"><i class="bi bi-bar-chart-line me-2 text-primary"></i>Crime Category Breakdown</h5>
+                            <select class="form-select form-select-sm" style="width: 180px;">
+                                <option>Last 30 days</option>
+                                <option>Last 7 days</option>
+                                <option>Last 90 days</option>
+                            </select>
+                        </div>
+                        <canvas id="categoryChart" height="120"></canvas>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="chart-container h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h5 class="mb-0 fw-semibold"><i class="bi bi-pie-chart-fill me-2 text-success"></i>Status Distribution</h5>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-center h-100">
+                            <canvas id="statusChart" width="200" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions + Recent Complaints -->
             <div class="row g-4">
                 <div class="col-lg-4">
-                    <div class="card p-3">
-                        <h5 class="mb-3">Case Status Distribution</h5>
-                        <div class="d-flex align-items-center">
-                            <canvas id="statusDoughnut" style="max-width:220px"></canvas>
-                            <div class="ms-3">
-                                <div class="small text-secondary">Pending</div>
-                                <div class="small text-secondary">In Progress</div>
-                                <div class="small text-secondary">Resolved</div>
-                            </div>
+                    <div class="card metric-card p-4 h-100">
+                        <h5 class="mb-4 fw-semibold"><i class="bi bi-lightning-charge-fill me-2 text-warning"></i>Quick Actions</h5>
+                        <div class="d-grid gap-3">
+                            <a href="add-complaint.php" class="quick-action-btn btn-primary">
+                                <i class="bi bi-plus-circle-fill me-2"></i>New Complaint
+                            </a>
+                            <a href="criminals.php" class="quick-action-btn btn-outline-primary">
+                                <i class="bi bi-person-plus-fill me-2"></i>Add Criminal
+                            </a>
+                            <a href="#" class="quick-action-btn btn-success" data-bs-toggle="modal" data-bs-target="#sendAlertModal">
+                                <i class="bi bi-bell-fill me-2"></i>Send Alert
+                            </a>
+                            <a href="reports.php" class="quick-action-btn btn-info">
+                                <i class="bi bi-graph-up-arrow me-2"></i>Generate Report
+                            </a>
                         </div>
                     </div>
                 </div>
                 <div class="col-lg-8">
-                            <div class="card p-3"><h5 class="mb-3">Complaints This Month</h5><div class="text-secondary small">Summary statistics and trends are available in the reports section.</div></div>
+                    <div class="card p-4" style="background: rgba(31,41,55,0.8); border-radius: 20px; border: 1px solid rgba(55,65,81,0.5);">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h5 class="mb-0 fw-semibold"><i class="bi bi-clock-history me-2 text-primary"></i>Recent Complaints</h5>
+                            <div class="d-flex gap-2">
+                                <select class="form-select form-select-sm" style="width: 120px;">
+                                    <option>All</option>
+                                    <option>Pending</option>
+                                    <option>Resolved</option>
+                                </select>
+                                <button class="btn btn-sm btn-outline-primary"><i class="bi bi-funnel"></i></button>
+                            </div>
                         </div>
-            </div>
-
-            <div class="card mt-4 p-3">
-                <h5 class="mb-3">Recent Activity Feed</h5>
-                <ul class="list-group list-group-flush">
-                    <?php while($activity = $recent_activity->fetch_assoc()): ?>
-                    <li class="list-group-item bg-transparent d-flex justify-content-between align-items-center text-light border-secondary px-0">
-                        <div><strong>Complaint #<?= e($activity['complaint_code']) ?></strong><div class="text-secondary small"><?= e($activity['crime_type']) ?></div></div>
-                        <span class="text-secondary small"><?= date('M d, H:i', strtotime($activity['created_at'])) ?></span>
-                    </li>
-                    <?php endwhile; ?>
-                </ul>
+                        <div class="table-responsive">
+                            <table class="table table-hover table-dark mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="fw-semibold">Complaint ID</th>
+                                        <th class="fw-semibold">Type</th>
+                                        <th class="fw-semibold">Status</th>
+                                        <th class="fw-semibold">Complainant</th>
+                                        <th class="fw-semibold">Date</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php while($complaint = $recent_complaints->fetch_assoc()): ?>
+                                    <tr class="align-middle">
+                                        <td><span class="fw-semibold">#<?= htmlspecialchars($complaint['complaint_code']) ?></span></td>
+                                        <td><?= htmlspecialchars($complaint['crime_type']) ?></td>
+                                        <td><span class="status-badge status-<?= strtolower($complaint['status']) ?>">
+                                            <?= htmlspecialchars($complaint['status']) ?>
+                                        </span></td>
+                                        <td><?= htmlspecialchars($complaint['complainant'] ?? 'Anonymous') ?></td>
+                                        <td><small class="text-secondary"><?= date('M d, H:i', strtotime($complaint['created_at'])) ?></small></td>
+                                        <td>
+                                            <a href="view-complaint.php?id=<?= $complaint['id'] ?>" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    <?php endwhile; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="text-center mt-3">
+                            <a href="cases.php" class="text-primary fw-semibold">View All Complaints →</a>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
 </div>
 
+<!-- Alert Modal -->
+<div class="modal fade" id="sendAlertModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold"><i class="bi bi-bell-fill text-warning me-2"></i>Send Alert</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Choose alert type:</p>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-warning">Emergency Alert</button>
+                    <button class="btn btn-success">Status Update</button>
+                    <button class="btn btn-info">Public Advisory</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-document.getElementById('sidebarToggle').addEventListener('click', () => {
+document.getElementById('sidebarToggle')?.addEventListener('click', () => {
     document.getElementById('adminSidebar').classList.toggle('active');
 });
 
-document.addEventListener('DOMContentLoaded', function () {
-    const chartConfig = { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(139, 148, 158, 0.2)' } }, y: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(139, 148, 158, 0.2)' } } } };
-
-    // Fetch dashboard JSON and render charts
-        // use explicit relative path to avoid base href issues
-        fetch('./api/dashboard-data.php', { credentials: 'same-origin' }).then(r => {
-        if (!r.ok) throw new Error('Failed to fetch dashboard data');
-        return r.json();
-    }).then(data => {
-            // debug: show returned object in console to help troubleshoot missing charts
-            console.debug('dashboard-data:', data);
-
-            if (typeof Chart === 'undefined') {
-                console.error('Chart.js not loaded (window.Chart is undefined). Check your script includes.');
-                return;
-            }
-            // Category Breakdown (defensive)
-            try {
-                const catEl = document.getElementById('categoryBreakdownChart');
-                if (catEl && data.category) {
-                    const catLabels = data.category.labels || [];
-                    const catData = data.category.data || [];
-                    new Chart(catEl, { type: 'bar', data: { labels: catLabels, datasets: [{ data: catData, backgroundColor: 'rgba(88, 166, 255, 0.5)' }] }, options: { ...chartConfig, indexAxis: 'y' } });
-                }
-            } catch (err) {
-                console.warn('Category chart failed to render:', err);
-            }
-
-        // state hotspots are not shown on this dashboard; skip updating them
-
-            // Status doughnut (defensive)
-            try {
-                const statusEl = document.getElementById('statusDoughnut');
-                if (statusEl) {
-                    const statusCounts = data.status_counts || {};
-                    const statusLabels = ['Pending', 'In Progress', 'Resolved'];
-                    const statusValues = [statusCounts['Pending'] || 0, statusCounts['In Progress'] || 0, statusCounts['Resolved'] || 0];
-                    const ctxStatus = statusEl.getContext('2d');
-                    new Chart(ctxStatus, { type: 'doughnut', data: { labels: statusLabels, datasets: [{ data: statusValues, backgroundColor: ['#ffb86b', '#58a6ff', '#6ee7b7'] }] }, options: { plugins: { legend: { display: false } }, cutout: '70%' } });
-                }
-            } catch (err) {
-                console.warn('Status doughnut failed to render:', err);
-            }
-
-    // Update recent activity feed
-        if (Array.isArray(data.recent_activity)){
-            const list = document.querySelector('.list-group');
-            if (list){
-                list.innerHTML = '';
-                data.recent_activity.forEach(act => {
-                    const li = document.createElement('li');
-                    li.className = 'list-group-item bg-transparent d-flex justify-content-between align-items-center text-light border-secondary px-0';
-                    const left = document.createElement('div');
-                    left.innerHTML = `<strong>Complaint #${escapeHtml(act.complaint_code)}</strong><div class="text-secondary small">${escapeHtml(act.crime_type)}</div>`;
-                    const right = document.createElement('span');
-                    right.className = 'text-secondary small';
-                    right.textContent = (new Date(act.created_at)).toLocaleString(undefined, { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-                    li.appendChild(left); li.appendChild(right); list.appendChild(li);
-                });
+// Charts
+document.addEventListener('DOMContentLoaded', () => {
+    // Category Chart
+    new Chart(document.getElementById('categoryChart'), {
+        type: 'bar',
+        data: {
+            labels: <?= json_encode($category_labels) ?>,
+            datasets: [{
+                data: <?= json_encode($category_data) ?>,
+                backgroundColor: 'linear-gradient(180deg, rgba(37,99,235,0.8) 0%, rgba(37,99,235,0.2) 100%)',
+                borderRadius: 12,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: '#9ca3af' } },
+                y: { grid: { color: 'rgba(148,163,184,0.1)' }, ticks: { color: '#9ca3af' } }
             }
         }
+    });
 
-        // Update top-level numeric metrics
-        if (data.totals){
-            const t = data.totals;
-            if (document.getElementById('totalComplaints')) document.getElementById('totalComplaints').textContent = Number(t.total||0).toLocaleString();
-            if (document.getElementById('pendingComplaints')) document.getElementById('pendingComplaints').textContent = Number(t.pending||0).toLocaleString();
-            if (document.getElementById('resolvedComplaints')) document.getElementById('resolvedComplaints').textContent = Number(t.resolved||0).toLocaleString();
-            if (document.getElementById('totalCriminals')) document.getElementById('totalCriminals').textContent = Number(t.criminals||0).toLocaleString();
+    // Status Doughnut
+    new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Pending', 'In Progress', 'Resolved'],
+            datasets: [{
+                data: [<?= $pending ?>, <?= $investigating ?>, <?= $resolved ?>],
+                backgroundColor: ['#f87171', '#34d399', '#4ade80'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            cutout: '75%',
+            plugins: { legend: { display: false } }
         }
-    }).catch(err => { console.error(err); });
-
-    // small helper to avoid XSS when inserting server data
-    function escapeHtml(s){
-        if (!s) return '';
-        return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
-    }
+    });
 });
 </script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-<script>
-// Theme toggle: persist preference in localStorage and apply by toggling `light-theme` on <html>
-;(function(){
-    const toggle = document.getElementById('themeToggle');
-    const icon = document.getElementById('themeIcon');
-    const htmlEl = document.documentElement;
-    const body = document.body;
-    const wrapper = document.getElementById('themeToggleWrapper');
-
-    function applyTheme(isLight){
-        // Temporarily disable CSS transitions for instant theme flip
-        htmlEl.classList.add('disable-transitions');
-        requestAnimationFrame(() => {
-            if(isLight){
-                htmlEl.classList.add('light-theme');
-                htmlEl.setAttribute('data-bs-theme', 'light');
-                if(icon) icon.className = 'bi bi-sun-fill';
-                if(wrapper) wrapper.classList.remove('text-light');
-                if(toggle) toggle.checked = true;
-            } else {
-                htmlEl.classList.remove('light-theme');
-                htmlEl.setAttribute('data-bs-theme', 'dark');
-                if(icon) icon.className = 'bi bi-moon-stars-fill';
-                if(wrapper) wrapper.classList.add('text-light');
-                if(toggle) toggle.checked = false;
-            }
-            // Force reflow then remove transition-disable after a short delay
-            void htmlEl.offsetWidth;
-            setTimeout(() => htmlEl.classList.remove('disable-transitions'), 50);
-        });
-    }
-
-    // Initialize from localStorage or prefer dark (default as in original CSS)
-    const stored = localStorage.getItem('js_theme');
-    const useLight = stored ? (stored === 'light') : false;
-    applyTheme(useLight);
-
-    // Bind change
-    if(toggle){
-        // Ensure wrapper text color matches initial theme
-        if(wrapper){
-            if(useLight) wrapper.classList.remove('text-light'); else wrapper.classList.add('text-light');
-        }
-        toggle.addEventListener('change', function(){
-            const nowLight = !!this.checked;
-            localStorage.setItem('js_theme', nowLight ? 'light' : 'dark');
-            applyTheme(nowLight);
-        });
-    }
-})();
-</script>
-
