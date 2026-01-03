@@ -88,8 +88,7 @@ Jan-Suraksha/
 | Home Page | Complaint Form |
 | :---: | :---: |
 | <img width="1913" height="925" alt="Screenshot 2025-12-07 195411" src="https://github.com/user-attachments/assets/d5163e3c-ef33-43dc-bd2c-d5ace7925f67" /> | <img width="1897" height="928" alt="Screenshot 2025-12-07 195453" src="https://github.com/user-attachments/assets/036f94c0-80fc-4a91-9d76-47a496f6b25c" /> |
-| <img width="1883" height="929" alt="image" src="https://github.com/user-attachments/assets/1e2bec0a-7cb3-4a39-ab51-f7ad1d60d6db" />
- | <img width="1918" height="889" alt="image" src="https://github.com/user-attachments/assets/0c5d3021-4ec1-4121-b071-7e1595a11b68" /> |
+| <img width="1883" height="929" alt="image" src="https://github.com/user-attachments/assets/1e2bec0a-7cb3-4a39-ab51-f7ad1d60d6db" /> | <img width="1918" height="889" alt="image" src="https://github.com/user-attachments/assets/0c5d3021-4ec1-4121-b071-7e1595a11b68" /> |
 |<img width="1902" height="888" alt="image" src="https://github.com/user-attachments/assets/a2af0064-5b11-465b-9873-45e0801182aa" /> | <img width="1863" height="842" alt="image" src="https://github.com/user-attachments/assets/ef31c001-9214-4229-b623-4828a8306fe4" /> |
 
 
