@@ -4,25 +4,29 @@ require_once __DIR__ . '/config.php';
 $err = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $user_id = $_SESSION['user_id'] ?? null;
+    // CSRF Protection
+    if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
+        $err = 'Invalid security token. Please refresh the page and try again.';
+    } else {
+        $user_id = $_SESSION['user_id'] ?? null;
 
-    if (empty($user_id)) {
-        $err = 'Please login before filing a complaint.';
-    }
+        if (empty($user_id)) {
+            $err = 'Please login before filing a complaint.';
+        }
 
-    $name = trim($_POST['name'] ?? '');
-    $mobile = trim($_POST['mobile'] ?? '');
-    $house = trim($_POST['house'] ?? '');
-    $city = trim($_POST['city'] ?? '');
-    $state = trim($_POST['state'] ?? '');
-    $pincode = trim($_POST['pincode'] ?? '');
-    $crime = trim($_POST['crime_type'] ?? '');
-    $date = trim($_POST['incident_date'] ?? '');
-    $location = trim($_POST['location'] ?? '');
-    $desc = trim($_POST['description'] ?? '');
+        $name = trim($_POST['name'] ?? '');
+        $mobile = trim($_POST['mobile'] ?? '');
+        $house = trim($_POST['house'] ?? '');
+        $city = trim($_POST['city'] ?? '');
+        $state = trim($_POST['state'] ?? '');
+        $pincode = trim($_POST['pincode'] ?? '');
+        $crime = trim($_POST['crime_type'] ?? '');
+        $date = trim($_POST['incident_date'] ?? '');
+        $location = trim($_POST['location'] ?? '');
+        $desc = trim($_POST['description'] ?? '');
 
-    // Validation
-    if (!$name || !preg_match('/^[0-9]{10}$/', $mobile) || !$crime) {
+        // Validation
+        if (!$name || !preg_match('/^[0-9]{10}$/', $mobile) || !$crime) {
         $err = 'Fill required fields: name, 10-digit mobile, crime type.';
     } elseif ($pincode && !preg_match('/^[0-9]{6}$/', $pincode)) {
         $err = 'Pincode must be 6 digits.';
@@ -85,6 +89,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->bind_param('isssssssss', $uid, $code, $name, $mobile, $crime, $date, $location, $finalDescription, $uploadedFile, $status);
 
                 if ($stmt->execute()) {
+                    // Regenerate CSRF token after successful submission
+                    unset($_SESSION['csrf_token']);
                     header('Location: complain-success.php?code=' . urlencode($code));
                     exit;
                 } else {
@@ -182,6 +188,7 @@ body {
                 <?php endif; ?>
 
                 <form method="post" enctype="multipart/form-data" id="complaintForm">
+                    <?php echo csrf_token_field(); ?>
                     
                     <section class="mb-4">
                         <h2 class="form-section-heading">Complainant Details</h2>

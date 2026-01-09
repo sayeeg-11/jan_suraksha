@@ -3,16 +3,27 @@ require_once __DIR__ . '/../config.php';
 
 $err='';
 if($_SERVER['REQUEST_METHOD']==='POST'){
-    $aid = $_POST['admin_id'] ?? '';
-    $pass = $_POST['password'] ?? '';
-    $stmt = $mysqli->prepare('SELECT id,admin_name,password_hash FROM admins WHERE admin_id=?');
-    $stmt->bind_param('s',$aid); $stmt->execute(); $res = $stmt->get_result();
-    if($row = $res->fetch_assoc()){
-        if(password_verify($pass,$row['password_hash'])){
-            $_SESSION['admin_id'] = $row['id']; header('Location: dashboard.php'); exit;
+    // CSRF Protection
+    if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
+        $err = 'Invalid security token. Please try again.';
+    } else {
+        $aid = $_POST['admin_id'] ?? '';
+        $pass = $_POST['password'] ?? '';
+        $stmt = $mysqli->prepare('SELECT id,admin_name,password_hash FROM admins WHERE admin_id=?');
+        $stmt->bind_param('s',$aid); $stmt->execute(); $res = $stmt->get_result();
+        if($row = $res->fetch_assoc()){
+            if(password_verify($pass,$row['password_hash'])){
+                // Session Fixation Protection - Regenerate session ID
+                session_regenerate_id(true);
+                $_SESSION['admin_id'] = $row['id'];
+                $_SESSION['admin_name'] = $row['admin_name'];
+                // Regenerate CSRF token after successful login
+                unset($_SESSION['csrf_token']);
+                header('Location: dashboard.php'); exit;
+            }
         }
+        $err = 'Invalid admin credentials.';
     }
-    $err = 'Invalid admin credentials.';
 }
 ?>
 <!doctype html>
@@ -161,6 +172,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       <?php endif; ?>
 
       <form method="post" id="adminLoginForm" novalidate>
+        <?php echo csrf_token_field(); ?>
         <div class="mb-3">
           <label class="form-label">Admin ID</label>
           <input class="form-control" name="admin_id" type="text" placeholder="Enter admin ID">

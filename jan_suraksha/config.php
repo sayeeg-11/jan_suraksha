@@ -1,5 +1,14 @@
-
 <?php
+// Secure Session Cookie Configuration - MUST be before session_start()
+session_set_cookie_params([
+    'lifetime' => 3600,  // 1 hour
+    'path' => '/',
+    'domain' => '',
+    'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',  // HTTPS only in production
+    'httponly' => true,   // Prevent JavaScript access
+    'samesite' => 'Strict' // Prevent CSRF - only send cookie in same-site requests
+]);
+
 // Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -63,14 +72,14 @@ if (!function_exists('js_secure_upload')) {
     /**
      * Perform strict validation and move an uploaded file.
      *
-     * @param array  $file              The single element from $_FILES
-     * @param array  $allowedMap        [extension => [allowed mime types]]
-     * @param string $destinationDir    Absolute target directory
-     * @param int    $maxSizeBytes      Maximum allowed file size in bytes
-     * @param string $errorMessage      Populated with a user-facing error on failure
-     * @param string $context           Short label for logging (e.g. 'evidence', 'mugshot')
+     * @param array       $file               The single element from $_FILES
+     * @param array       $allowedMap         [extension => [allowed mime types]]
+     * @param string      $destinationDir     Absolute target directory
+     * @param int         $maxSizeBytes       Maximum allowed file size in bytes
+     * @param string|null $errorMessage       Output parameter (by reference) with a user-facing error on failure
+     * @param string      $context            Short label for logging (e.g. 'evidence', 'mugshot')
      *
-     * @return string|null              The stored filename on success, or null on failure
+     * @return string|null                    The stored filename on success, or null on failure
      */
     function js_secure_upload(array $file, array $allowedMap, string $destinationDir, int $maxSizeBytes, ?string &$errorMessage = null, string $context = 'upload'): ?string {
         $errorMessage = null;
@@ -90,10 +99,17 @@ if (!function_exists('js_secure_upload')) {
             return null;
         }
 
-        $size = isset($file['size']) ? (int)$file['size'] : 0;
-        if ($size <= 0 || $size > $maxSizeBytes) {
+        // Use actual file size on disk, not only client-reported size
+        $clientSize = isset($file['size']) ? (int)$file['size'] : 0;
+        $actualSize = @filesize($file['tmp_name']);
+        if ($actualSize === false) {
+            $errorMessage = 'Unable to determine uploaded file size.';
+            error_log("Rejected {$context} upload: could not determine filesize() for tmp_name (client reported {$clientSize}).");
+            return null;
+        }
+        if ($actualSize <= 0 || $actualSize > $maxSizeBytes) {
             $errorMessage = 'File size is not allowed.';
-            error_log("Rejected {$context} upload: size {$size} bytes outside allowed range.");
+            error_log("Rejected {$context} upload: actual size {$actualSize} bytes outside allowed range (max {$maxSizeBytes}, client reported {$clientSize}).");
             return null;
         }
 
@@ -155,5 +171,44 @@ if (!function_exists('js_secure_upload')) {
         }
 
         return $finalName;
+    }
+}
+
+// Security: CSRF Protection Functions
+if (!function_exists('generate_csrf_token')) {
+    /**
+     * Generate a CSRF token and store it in the session
+     * @return string The generated CSRF token
+     */
+    function generate_csrf_token() {
+        if (empty($_SESSION['csrf_token'])) {
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        }
+        return $_SESSION['csrf_token'];
+    }
+}
+
+if (!function_exists('validate_csrf_token')) {
+    /**
+     * Validate CSRF token using constant-time comparison
+     * @param string $token The token to validate
+     * @return bool True if valid, false otherwise
+     */
+    function validate_csrf_token($token) {
+        if (empty($_SESSION['csrf_token']) || empty($token)) {
+            return false;
+        }
+        return hash_equals($_SESSION['csrf_token'], $token);
+    }
+}
+
+if (!function_exists('csrf_token_field')) {
+    /**
+     * Generate HTML hidden input field for CSRF token
+     * @return string HTML input field
+     */
+    function csrf_token_field() {
+        $token = generate_csrf_token();
+        return '<input type="hidden" name="csrf_token" value="' . htmlspecialchars($token, ENT_QUOTES, 'UTF-8') . '">';
     }
 }

@@ -12,16 +12,20 @@ $error_msg = '';
 
 // Handle Form Submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $mysqli->begin_transaction();
-    try {
-        // 1. Update Case Status
-        $status = $_POST['status'];
-        $stmt1 = $mysqli->prepare("UPDATE complaints SET status = ? WHERE id = ?");
-        $stmt1->bind_param('si', $status, $complaint_id);
-        $stmt1->execute();
+    // CSRF Protection
+    if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
+        $error_msg = 'Invalid security token. Please refresh the page and try again.';
+    } else {
+        $mysqli->begin_transaction();
+        try {
+            // 1. Update Case Status
+            $status = $_POST['status'];
+            $stmt1 = $mysqli->prepare("UPDATE complaints SET status = ? WHERE id = ?");
+            $stmt1->bind_param('si', $status, $complaint_id);
+            $stmt1->execute();
 
-        // 2. Add New Diary Entry
-        $diary_entry = trim($_POST['diary_entry'] ?? '');
+            // 2. Add New Diary Entry
+            $diary_entry = trim($_POST['diary_entry'] ?? '');
         if (!empty($diary_entry)) {
             $admin_id = (int)$_SESSION['admin_id'];
             // schema uses note_text and created_at
@@ -86,12 +90,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         $mysqli->commit();
+        // Regenerate CSRF token after successful update
+        unset($_SESSION['csrf_token']);
         header("Location: update-case.php?id=" . $complaint_id . "&success=1");
         exit;
 
     } catch (Exception $e) {
         $mysqli->rollback();
         $error_msg = "Error updating case: " . $e->getMessage();
+    }
     }
 }
 
@@ -203,6 +210,7 @@ $current_page = 'cases.php'; // CORRECTED
             <?php if ($error_msg): ?><div class="alert alert-danger"><?= $error_msg ?></div><?php endif; ?>
 
             <form method="post" enctype="multipart/form-data">
+                <?php echo csrf_token_field(); ?>
                 <input type="hidden" name="accused_id" value="<?= e($case['accused_id']) ?>">
                 <input type="hidden" name="existing_mugshot" value="<?= e($case['mugshot']) ?>">
 
