@@ -7,7 +7,7 @@ require_once __DIR__ . '/../config.php';
 
 // --- PHP LOGIC ---
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
-if(empty($_SESSION['admin_id'])){ header('Location: index.php'); exit; }
+if (empty($_SESSION['admin_id'])) { header('Location: index.php'); exit; }
 
 $criminal_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
@@ -59,20 +59,45 @@ if (!$criminal_id) {
             $existing_mugshot = $_POST['existing_mugshot'] ?? '';
             $new_mugshot = $existing_mugshot;
 
-            // Handle mugshot upload
-            if (isset($_FILES['mugshot']) && $_FILES['mugshot']['error'] === UPLOAD_ERR_OK) {
-                $file = $_FILES['mugshot'];
-                if ($file['size'] < 5 * 1024 * 1024 && in_array($file['type'], ['image/jpeg', 'image/png'])) {
-                    if ($existing_mugshot && file_exists(__DIR__ . '/../uploads/mugshots/' . $existing_mugshot)) {
-                        unlink(__DIR__ . '/../uploads/mugshots/' . $existing_mugshot);
+            // Handle mugshot upload using secure helper (strict MIME and extension checks)
+            if (isset($_FILES['mugshot']) && $_FILES['mugshot']['error'] !== UPLOAD_ERR_NO_FILE) {
+                $mugshotFile = $_FILES['mugshot'];
+
+                $allowedMugshotTypes = [
+                    'jpg'  => ['image/jpeg', 'image/pjpeg'],
+                    'jpeg' => ['image/jpeg', 'image/pjpeg'],
+                    'png'  => ['image/png'],
+                ];
+
+                $maxMugshotSize = 5 * 1024 * 1024; // 5MB
+                $uploadError = null;
+                $destDir = __DIR__ . '/../uploads/mugshots';
+
+                $storedName = js_secure_upload(
+                    $mugshotFile,
+                    $allowedMugshotTypes,
+                    $destDir,
+                    $maxMugshotSize,
+                    $uploadError,
+                    'mugshot'
+                );
+
+                if ($uploadError !== null) {
+                    throw new Exception($uploadError . ' Mugshots must be JPG or PNG under 5MB.');
+                }
+
+                // Optionally delete old mugshot if it exists
+                if (!empty($existing_mugshot) && file_exists($destDir . '/' . $existing_mugshot)) {
+                    @unlink($destDir . '/' . $existing_mugshot);
+                }
+
+                $new_mugshot = $storedName;
+
+                if (!empty($existing_mugshot) && $existing_mugshot !== $new_mugshot) {
+                    $oldMugshotPath = $destDir . DIRECTORY_SEPARATOR . basename($existing_mugshot);
+                    if (is_file($oldMugshotPath)) {
+                        @unlink($oldMugshotPath);
                     }
-                    $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-                    $new_mugshot = bin2hex(random_bytes(16)) . '.' . $ext;
-                    $upload_dir = __DIR__ . '/../uploads/mugshots/';
-                    if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
-                    move_uploaded_file($file['tmp_name'], $upload_dir . $new_mugshot);
-                } else { 
-                    throw new Exception("Invalid mugshot file. Must be JPG/PNG and under 5MB."); 
                 }
             }
 
