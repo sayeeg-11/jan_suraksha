@@ -1,3 +1,71 @@
 /* Minimal styles */
 body { padding-top: 70 px; }
 .jumbotron { background: linear-gradient(180deg,#f8f9fa,#e9ecef); }
+
+
+/* ===============================
+   Dark Mode Improvements
+================================ */
+
+[data-theme="dark"] {
+  background-color: #121212;
+  color: #e6e6e6;
+}
+
+/* Text */
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] h5,
+[data-theme="dark"] h6,
+[data-theme="dark"] p,
+[data-theme="dark"] label {
+  color: #e6e6e6;
+}
+
+/* Inputs */
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+  background-color: #1e1e1e;
+  color: #ffffff;
+  border: 1px solid #555;
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: #aaaaaa;
+}
+
+/* Buttons */
+[data-theme="dark"] button,
+[data-theme="dark"] .btn {
+  background-color: #4f46e5;
+  color: #ffffff;
+  border: none;
+}
+
+[data-theme="dark"] button:hover,
+[data-theme="dark"] .btn:hover {
+  background-color: #6366f1;
+}
+
+/* Cards / Sections */
+[data-theme="dark"] .card,
+[data-theme="dark"] .container,
+[data-theme="dark"] .section {
+  background-color: #1f1f1f;
+  border: 1px solid #333;
+}
+
+/* Navbar */
+[data-theme="dark"] nav,
+[data-theme="dark"] .navbar {
+  background-color: #1a1a1a;
+}
+
+[data-theme="dark"] nav a,
+[data-theme="dark"] .navbar a {
+  color: #ffffff;
+}
