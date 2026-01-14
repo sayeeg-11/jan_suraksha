@@ -151,23 +151,26 @@ document.addEventListener('DOMContentLoaded', function() {
         item.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
     });
 
-    // Simulate skeleton loading on page load
+    // Simulate skeleton loading on page load without destroying gallery content
     const galleryGrid = document.getElementById('galleryGrid');
-    if (galleryGrid) {
-        const originalContent = galleryGrid.innerHTML;
-        
+    if (galleryGrid && window.showSkeletonLoader) {
+        // Create a dedicated skeleton container overlaying the gallery
+        const skeletonContainer = document.createElement('div');
+        skeletonContainer.className = 'gallery-skeleton-container';
+        galleryGrid.appendChild(skeletonContainer);
+
         // Show skeleton temporarily
-        if (window.showSkeletonLoader) {
-            window.showSkeletonLoader(galleryGrid, 'gallery');
-            
-            // Restore content after delay to simulate loading
-            setTimeout(() => {
-                if (window.hideSkeletonLoader) {
-                    galleryGrid.innerHTML = originalContent;
-                    window.hideSkeletonLoader(galleryGrid);
-                }
-            }, 800);
-        }
+        window.showSkeletonLoader(skeletonContainer, 'gallery');
+
+        // Hide skeleton after delay to simulate loading
+        setTimeout(() => {
+            if (window.hideSkeletonLoader) {
+                window.hideSkeletonLoader(skeletonContainer);
+            }
+            if (skeletonContainer.parentNode === galleryGrid) {
+                galleryGrid.removeChild(skeletonContainer);
+            }
+        }, 800);
     }
 });
 </script>
