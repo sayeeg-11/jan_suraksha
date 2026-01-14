@@ -388,6 +388,9 @@ const LoadingOverlay = {
             overlay = document.createElement('div');
             overlay.id = 'loadingOverlay';
             overlay.className = 'loading-overlay';
+            overlay.setAttribute('role', 'status');
+            overlay.setAttribute('aria-live', 'polite');
+            overlay.setAttribute('aria-label', 'Loading');
             overlay.innerHTML = '<div class="spinner"></div>';
             document.body.appendChild(overlay);
         }
