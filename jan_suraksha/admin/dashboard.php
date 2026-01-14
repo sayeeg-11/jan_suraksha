@@ -613,20 +613,6 @@ document.addEventListener('DOMContentLoaded', () => {
             plugins: { legend: { display: false } }
         }
     });
-
-    // Add skeleton loading for dashboard tables
-    const recentTable = document.querySelector('.table-responsive');
-    if (recentTable && window.showSkeletonLoader) {
-        const tableContent = recentTable.innerHTML;
-        window.showSkeletonLoader(recentTable, 'table');
-        
-        setTimeout(() => {
-            if (window.hideSkeletonLoader) {
-                recentTable.innerHTML = tableContent;
-                window.hideSkeletonLoader(recentTable);
-            }
-        }, 600);
-    }
 });
 
 // Fixed Theme Toggle - NO MORE REFRESH!
