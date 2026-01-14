@@ -3,55 +3,59 @@ require_once __DIR__ . '/config.php';
 
 $err = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $user_id = $_SESSION['user_id'] ?? null;
-
-    if (empty($user_id)) {
-        $err = 'Please login before filing a complaint.';
-    }
-
-    $name = trim($_POST['name'] ?? '');
-    $mobile = trim($_POST['mobile'] ?? '');
-    $house = trim($_POST['house'] ?? '');
-    $city = trim($_POST['city'] ?? '');
-    $state = trim($_POST['state'] ?? '');
-    $pincode = trim($_POST['pincode'] ?? '');
-    $crime = trim($_POST['crime_type'] ?? '');
-    $date = trim($_POST['incident_date'] ?? '');
-    $location = trim($_POST['location'] ?? '');
-    $desc = trim($_POST['description'] ?? '');
-
-    // Validation
-    if (!$name || !preg_match('/^[0-9]{10}$/', $mobile) || !$crime) {
-        $err = 'Fill required fields: name, 10-digit mobile, crime type.';
-    } elseif ($pincode && !preg_match('/^[0-9]{6}$/', $pincode)) {
-        $err = 'Pincode must be 6 digits.';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') 
+    // CSRF Protection
+    if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
+        $err = 'Invalid security token. Please refresh the page and try again.';
     } else {
-        // Handle file upload
-        $uploadedFile = null;
-        if (!empty($_FILES['evidence']) && $_FILES['evidence']['error'] === UPLOAD_ERR_OK) {
-            $u = $_FILES['evidence'];
-            $allowed = ['image/jpeg', 'image/png', 'application/pdf', 'video/mp4'];
+        $user_id = $_SESSION['user_id'] ?? null;
 
-            if (!in_array($u['type'], $allowed)) {
-                $err = 'Unsupported file type. Allowed: JPG, PNG, PDF, MP4';
-            } elseif ($u['size'] > 20 * 1024 * 1024) {
-                $err = 'File too large. Maximum 20MB.';
+        if (empty($user_id)) {
+            $err = 'Please login before filing a complaint.';
+        }
+
+        $name = trim($_POST['name'] ?? '');
+        $mobile = trim($_POST['mobile'] ?? '');
+        $house = trim($_POST['house'] ?? '');
+        $city = trim($_POST['city'] ?? '');
+        $state = trim($_POST['state'] ?? '');
+        $pincode = trim($_POST['pincode'] ?? '');
+        $crime = trim($_POST['crime_type'] ?? '');
+        $date = trim($_POST['incident_date'] ?? '');
+        $location = trim($_POST['location'] ?? '');
+        $desc = trim($_POST['description'] ?? '');
+
+        // Validation
+        if (!$name || !preg_match('/^[0-9]{10}$/', $mobile) || !$crime) {
+            $err = 'Fill required fields: name, 10-digit mobile, crime type.';
+        } elseif ($pincode && !preg_match('/^[0-9]{6}$/', $pincode)) {
+            $err = 'Pincode must be 6 digits.';
+        } else {
+            // Handle file upload (evidence)
+            $uploadedFile = null;
+
+            if (!empty($_FILES['evidence']) && $_FILES['evidence']['error'] !== UPLOAD_ERR_NO_FILE) {
+            $evidenceFile = $_FILES['evidence'];
+
+            // Strict allow-list: images + selected document/media types
+            $allowedEvidenceTypes = [
+                'jpg'  => ['image/jpeg', 'image/pjpeg'],
+                'jpeg' => ['image/jpeg', 'image/pjpeg'],
+                'png'  => ['image/png'],
+                'pdf'  => ['application/pdf'],
+                'mp4'  => ['video/mp4', 'video/x-m4v'],
+            ];
+
+            $maxEvidenceSize = 20 * 1024 * 1024; // 20MB
+            $uploadError = null;
+            $destDir = __DIR__ . '/uploads';
+
+            $storedName = js_secure_upload($evidenceFile, $allowedEvidenceTypes, $destDir, $maxEvidenceSize, $uploadError, 'evidence');
+
+            if ($uploadError !== null) {
+                $err = $uploadError . ' Allowed types: JPG, JPEG, PNG, PDF, MP4.';
             } else {
-                $ext = pathinfo($u['name'], PATHINFO_EXTENSION);
-                $safe = bin2hex(random_bytes(16)) . '.' . $ext;
-                $destDir = __DIR__ . '/uploads';
-
-                if (!is_dir($destDir)) {
-                    mkdir($destDir, 0755, true);
-                }
-
-                $dest = $destDir . '/' . $safe;
-                if (move_uploaded_file($u['tmp_name'], $dest)) {
-                    $uploadedFile = $safe;
-                } else {
-                    $err = 'Failed to upload file.';
-                }
+                $uploadedFile = $storedName;
             }
         }
 
@@ -85,6 +89,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->bind_param('isssssssss', $uid, $code, $name, $mobile, $crime, $date, $location, $finalDescription, $uploadedFile, $status);
 
                 if ($stmt->execute()) {
+                    // Regenerate CSRF token after successful submission
+                    unset($_SESSION['csrf_token']);
                     header('Location: complain-success.php?code=' . urlencode($code));
                     exit;
                 } else {
@@ -182,6 +188,7 @@ body {
                 <?php endif; ?>
 
                 <form method="post" enctype="multipart/form-data" id="complaintForm">
+                    <?php echo csrf_token_field(); ?>
                     
                     <section class="mb-4">
                         <h2 class="form-section-heading">Complainant Details</h2>
