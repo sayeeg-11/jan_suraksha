@@ -569,13 +569,28 @@ function showProgressBar() {
 
 // Page transition loading
 function initPageTransitions() {
-    // Show progress bar on navigation
-    document.querySelectorAll('a:not([href^="#"]):not([href^="javascript:"])').forEach(link => {
-        link.addEventListener('click', function(e) {
-            if (!this.hasAttribute('download') && !this.hasAttribute('target')) {
-                showProgressBar();
-            }
-        });
+    // Show progress bar on navigation using event delegation
+    const handlerTarget = document.body || document;
+
+    handlerTarget.addEventListener('click', function (e) {
+        const link = e.target.closest('a');
+        if (!link) {
+            return;
+        }
+
+        const href = link.getAttribute('href');
+
+        // Ignore in-page anchors and javascript: links
+        if (!href || href.startsWith('#') || href.startsWith('javascript:')) {
+            return;
+        }
+
+        // Ignore downloads and links that open in a new tab/window or frame
+        if (link.hasAttribute('download') || link.hasAttribute('target')) {
+            return;
+        }
+
+        showProgressBar();
     });
 }
 
