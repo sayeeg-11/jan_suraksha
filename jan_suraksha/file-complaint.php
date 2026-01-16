@@ -328,4 +328,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<script src="js/anonymous-handler.js"></script>
+
 <?php include 'footer.php'; ?>
