@@ -183,7 +183,34 @@ body {
 
                 <form method="post" enctype="multipart/form-data" id="complaintForm">
                     
-                    <section class="mb-4">
+                    <!-- Anonymous Reporting Option -->
+                    <section class="mb-4 p-3" style="background-color: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="anonymous-checkbox" name="is_anonymous" value="1">
+                            <label class="form-check-label" for="anonymous-checkbox">
+                                <strong>🔒 Report Anonymously</strong>
+                                <p class="text-muted small mb-0">Your identity will be protected. Personal information fields will be hidden.</p>
+                            </label>
+                        </div>
+                        
+                        <!-- Privacy Disclaimer (Hidden by default, shown when anonymous is checked) -->
+                        <div id="anonymous-disclaimer" class="alert alert-info mt-3" style="display: none; border-left: 4px solid #0dcaf0;">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-info-circle-fill me-2 mt-1" style="font-size: 1.25rem;"></i>
+                                <div>
+                                    <h6 class="mb-2"><strong>⚠️ Important: Anonymous Reporting</strong></h6>
+                                    <ul class="mb-0 small">
+                                        <li>Your identity will be completely protected</li>
+                                        <li><strong>Save your tracking ID securely</strong> - you cannot recover it later</li>
+                                        <li>Anonymous complaints may take longer to investigate</li>
+                                        <li>No personal information will be stored in our system</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    
+                    <section class="mb-4" id="personal-info-section">
                         <h2 class="form-section-heading">Complainant Details</h2>
                         <div class="mb-3">
                             <label for="name" class="form-label">Complainant's Name</label>
