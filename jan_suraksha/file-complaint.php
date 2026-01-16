@@ -10,6 +10,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $err = 'Please login before filing a complaint.';
     }
 
+    // Check if this is an anonymous complaint
+    $isAnonymous = isset($_POST['is_anonymous']) && $_POST['is_anonymous'] == '1';
+
     $name = trim($_POST['name'] ?? '');
     $mobile = trim($_POST['mobile'] ?? '');
     $house = trim($_POST['house'] ?? '');
@@ -21,11 +24,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $location = trim($_POST['location'] ?? '');
     $desc = trim($_POST['description'] ?? '');
 
-    // Validation
-    if (!$name || !preg_match('/^[0-9]{10}$/', $mobile) || !$crime) {
-        $err = 'Fill required fields: name, 10-digit mobile, crime type.';
-    } elseif ($pincode && !preg_match('/^[0-9]{6}$/', $pincode)) {
-        $err = 'Pincode must be 6 digits.';
+    // Validation - Different rules for anonymous vs regular complaints
+    if ($isAnonymous) {
+        // Anonymous complaint - only crime type and description required
+        if (!$crime) {
+            $err = 'Crime type is required.';
+        } elseif (!$desc) {
+            $err = 'Detailed description is required.';
+        }
+    } else {
+        // Regular complaint - name, mobile, and crime type required
+        if (!$name || !preg_match('/^[0-9]{10}$/', $mobile) || !$crime) {
+            $err = 'Fill required fields: name, 10-digit mobile, crime type.';
+        } elseif ($pincode && !preg_match('/^[0-9]{6}$/', $pincode)) {
+            $err = 'Pincode must be 6 digits.';
+        }
     } else {
         // Handle file upload
         $uploadedFile = null;
@@ -60,10 +73,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $prefix = 'IN/' . date('Y') . '/';
             $code = $prefix . str_pad(rand(1, 99999), 5, '0', STR_PAD_LEFT);
 
-            // Combine address fields
-            $complainantAddress = trim("$house, $city, $state - $pincode");
-            if ($complainantAddress === ',  -') {
-                $complainantAddress = '';
+            // Generate anonymous tracking ID if this is an anonymous complaint
+            $anonymousTrackingId = null;
+            if ($isAnonymous) {
+                // Format: ANON-YYYY-XXXXXX (6 random hex characters)
+                $anonymousTrackingId = 'ANON-' . date('Y') . '-' . strtoupper(bin2hex(random_bytes(3)));
+            }
+
+            // Combine address fields (only for regular complaints)
+            $complainantAddress = '';
+            if (!$isAnonymous) {
+                $complainantAddress = trim("$house, $city, $state - $pincode");
+                if ($complainantAddress === ',  -') {
+                    $complainantAddress = '';
+                }
             }
 
             // Prepend address to description
@@ -72,8 +95,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $finalDescription = "Complainant Address: " . $complainantAddress . "\n\n---\n\n" . $desc;
             }
 
-            // Prepare INSERT statement
-            $stmt = $mysqli->prepare('INSERT INTO complaints (user_id, complaint_code, complainant_name, mobile, crime_type, date_filed, location, description, evidence, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            // Prepare INSERT statement with anonymous support
+            $stmt = $mysqli->prepare('INSERT INTO complaints (user_id, complaint_code, complainant_name, mobile, crime_type, date_filed, location, description, evidence, status, is_anonymous, anonymous_tracking_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
 
             if ($stmt === false) {
                 $err = 'Database error: ' . $mysqli->error;
@@ -81,11 +104,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $uid = (int)$user_id;
                 $uploadedFile = $uploadedFile ?? '';
                 $status = 'Pending';
+                
+                // For anonymous complaints, set name and mobile to NULL
+                $finalName = $isAnonymous ? null : $name;
+                $finalMobile = $isAnonymous ? null : $mobile;
+                $isAnonymousFlag = $isAnonymous ? 1 : 0;
 
-                $stmt->bind_param('isssssssss', $uid, $code, $name, $mobile, $crime, $date, $location, $finalDescription, $uploadedFile, $status);
+                $stmt->bind_param('issssssssiis', $uid, $code, $finalName, $finalMobile, $crime, $date, $location, $finalDescription, $uploadedFile, $status, $isAnonymousFlag, $anonymousTrackingId);
 
                 if ($stmt->execute()) {
-                    header('Location: complain-success.php?code=' . urlencode($code));
+                    // Redirect to appropriate success page
+                    if ($isAnonymous) {
+                        header('Location: anonymous-success.php?tracking_id=' . urlencode($anonymousTrackingId));
+                    } else {
+                        header('Location: complain-success.php?code=' . urlencode($code));
+                    }
                     exit;
                 } else {
                     $err = 'Error filing complaint: ' . $stmt->error;
