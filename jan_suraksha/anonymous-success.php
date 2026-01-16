@@ -9,6 +9,8 @@ if ($tracking_id && !preg_match('/^ANON-\d{4}-[A-F0-9]{6}$/', $tracking_id)) {
 ?>
 <?php include 'header.php'; ?>
 
+<link rel="stylesheet" href="css/anonymous.css">
+
 <style>
     /* For pages with custom backgrounds, override body background */
 body {

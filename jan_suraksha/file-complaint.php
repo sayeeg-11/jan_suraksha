@@ -130,6 +130,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 <?php include 'header.php'; ?>
 
+<link rel="stylesheet" href="css/anonymous.css">
+
 <style>
     .form-container {
         background-color: #ffffff;
