@@ -150,6 +150,28 @@ document.addEventListener('DOMContentLoaded', function() {
     galleryItems.forEach(item => {
         item.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
     });
+
+    // Simulate skeleton loading on page load without destroying gallery content
+    const galleryGrid = document.getElementById('galleryGrid');
+    if (galleryGrid && window.showSkeletonLoader) {
+        // Create a dedicated skeleton container overlaying the gallery
+        const skeletonContainer = document.createElement('div');
+        skeletonContainer.className = 'gallery-skeleton-container';
+        galleryGrid.appendChild(skeletonContainer);
+
+        // Show skeleton temporarily
+        window.showSkeletonLoader(skeletonContainer, 'gallery');
+
+        // Hide skeleton after delay to simulate loading
+        setTimeout(() => {
+            if (window.hideSkeletonLoader) {
+                window.hideSkeletonLoader(skeletonContainer);
+            }
+            if (skeletonContainer.parentNode === galleryGrid) {
+                galleryGrid.removeChild(skeletonContainer);
+            }
+        }, 800);
+    }
 });
 </script>
 
