@@ -125,9 +125,9 @@ body {
                          data-submission-date="<?= e($complaint['date_filed']) ?>"
                          data-complaint-id="<?= e($code) ?>"
                          data-incident-date="<?= e($complaint['date_filed']) ?>"
-                         data-user-name="<?= e($complaint['fullname'] ?? 'Not Available') ?>"
-                         data-user-mobile="<?= e($complaint['mobile'] ?? 'Not Available') ?>"
-                         data-user-email="<?= e($complaint['email'] ?? '') ?>"
+                         data-user-name="<?= e(isset($complaint['fullname']) && $complaint['fullname'] !== null ? $complaint['fullname'] : 'Not Available') ?>"
+                         data-user-mobile="<?= e(isset($complaint['mobile']) && $complaint['mobile'] !== null ? $complaint['mobile'] : 'Not Available') ?>"
+                         data-user-email="<?= e(isset($complaint['email']) && $complaint['email'] !== null ? $complaint['email'] : '') ?>"
                          data-is-anonymous="false">
                     </div>
 
