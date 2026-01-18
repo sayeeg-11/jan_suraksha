@@ -217,7 +217,8 @@
     /* Page Setup */
     @page {
         size: A4 portrait;
-        margin: 0.5in;
+        margin: 12.7mm; /* Fallback for browsers preferring metric units */
+        margin: 0.5in;  /* Primary setting for browsers supporting inch units */
     }
 
     /* Reset body and hide unnecessary elements */
