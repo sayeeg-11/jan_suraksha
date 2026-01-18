@@ -19,13 +19,13 @@ if ($code) {
 <?php include 'header.php'; ?>
 
 <!-- Print Receipt Styles -->
-<link rel="stylesheet" href="css/print-receipt.css">
+<link rel="stylesheet" href="/css/print-receipt.css">
 
 <!-- QRCode.js Library for QR Code Generation -->
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
 <!-- Print Receipt Script -->
-<script src="js/print-receipt.js" defer></script>
+<script src="/js/print-receipt.js" defer></script>
 
 <style>
     /* For pages with custom backgrounds, override body background */
