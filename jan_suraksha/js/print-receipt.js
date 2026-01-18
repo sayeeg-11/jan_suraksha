@@ -444,10 +444,8 @@
         // Generate receipt HTML
         receiptContainer.innerHTML = generateReceiptHTML(formattedData, userData);
 
-        // Generate QR code
-        setTimeout(() => {
-            generateQRCode(formattedData.tracking_id);
-        }, 100);
+        // Generate QR code synchronously after receipt HTML is in place
+        generateQRCode(formattedData.tracking_id);
 
         // Attach print handler
         printBtn.addEventListener('click', function(e) {
